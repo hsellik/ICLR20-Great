@@ -42,7 +42,7 @@ class VarMisuseModel(tf.keras.layers.Layer):
 		subtoken_embeddings = tf.nn.embedding_lookup(self.embed, tokens)
 		subtoken_embeddings *= tf.expand_dims(tf.cast(tf.clip_by_value(tokens, 0, 1), dtype='float32'), -1)
 		states = tf.reduce_mean(subtoken_embeddings, 2)
-		
+
 		# Track whether any position-aware model processes the states first. If not, add positional encoding to ensure that e.g. GREAT and GGNN
 		# have sequential awareness. This is especially (but not solely) important because the default, non-buggy 'location' is the 0th token,
 		# which is hard to predict for e.g. Transformers and GGNNs without either sequential awareness or a special marker at that location.
@@ -101,11 +101,13 @@ class VarMisuseModel(tf.keras.layers.Layer):
 		
 		# To simplify the comparison, accuracy is computed as achieving >= 50% probability for the top guess
 		# (as opposed to the slightly more accurate, but hard to compute quickly, greatest probability among distinct variable names).
-		rep_accs = tf.cast(tf.greater_equal(target_probs, 0.5), 'float32')
-		target_loc_acc = tf.reduce_sum(is_buggy * rep_accs) / (1e-9 + tf.reduce_sum(is_buggy))  # Only on errors
+		# rep_accs = tf.cast(tf.greater_equal(target_probs, 0.5), 'float32')
+		# target_loc_acc = tf.reduce_sum(is_buggy * rep_accs) / (1e-9 + tf.reduce_sum(is_buggy))  # Only on errors
 		
 		# Also store the joint localization and repair accuracy -- arguably the most important metric.
-		joint_acc = tf.reduce_sum(is_buggy * loc_accs * rep_accs) / (1e-9 + tf.reduce_sum(is_buggy))  # Only on errors
+		target_loss = target_loss * 0
+		target_loc_acc = 0
+		joint_acc = 0
 		return (loc_loss, target_loss), (no_bug_pred_acc, bug_loc_acc, target_loc_acc, joint_acc)
 	
 	# Used to initialize the model's variables

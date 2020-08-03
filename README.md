@@ -3,6 +3,40 @@ This repository contains the data and code to replicate our [ICLR 2020 paper](ht
 
 This repository will also serve as the [*public benchmark*](#benchmark) for any models of source code that address this task on our dataset. Now that the subset of our paper's data that allows public release is available (see [Status](#status)), we will retrain the models described in our work and track both their, and any newly submitted models', performance on this page.
 
+## Quick Start for Error Replication
+* Download and extract dataset:  
+https://we.tl/t-G0DmSzfYvE  
+* Start training model (vocab is in bpe-vocab.txt):  
+`python running\run_model.py java-small-iclr bpe-vocab.txt config.yml`  
+* Error:
+```
+Traceback (most recent call last):
+  File "ICLR20-Great/running/run_model.py", line 150, in <module>
+    main()
+  File "ICLR20-Great/running/run_model.py", line 31, in main
+    train(data, config, args.models, args.log)
+  File "ICLR20-Great/running/run_model.py", line 67, in train
+    pointer_preds = model(tokens, token_mask, edges, training=True)
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\keras\engine\base_layer.py", line 985, in __call__
+    outputs = call_fn(inputs, *args, **kwargs)
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\def_function.py", line 780, in __call__
+    result = self._call(*args, **kwds)
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\def_function.py", line 807, in _call
+    return self._stateless_fn(*args, **kwds)  # pylint: disable=not-callable
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\function.py", line 2829, in __call__
+    return graph_function._filtered_call(args, kwargs)  # pylint: disable=protected-access
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\function.py", line 1843, in _filtered_call
+    return self._call_flat(
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\function.py", line 1931, in _call_flat
+    flat_outputs = forward_function.call(
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\function.py", line 545, in call
+    outputs = execute.execute(
+  File "ICLR20-Great\virtualenv\lib\site-packages\tensorflow\python\eager\execute.py", line 59, in quick_execute
+    tensors = pywrap_tfe.TFE_Py_Execute(ctx._handle, device_name, op_name,
+tensorflow.python.framework.errors_impl.InvalidArgumentError:  indices[147] = [0, 29, 73733] does not index into shape [6,184,184]
+	 [[{{node transformer/StatefulPartitionedCall/attention_layer/StatefulPartitionedCall/StatefulPartitionedCall_1/ScatterNd}}]] [Op:__forward_call_10362]
+```
+
 ## Quick Start
 The modeling code is written in Python (3.6+) and uses Tensorflow (recommended 2.2.x+). For a quick setup, run `pip install -r requirements.txt`.
 

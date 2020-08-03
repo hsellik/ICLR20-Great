@@ -9,17 +9,24 @@ import tensorflow as tf
 # Edge types to be used in the models, and their (renumbered) indices -- the data files contain
 # reserved indices for several edge types that do not occur for this problem (e.g. UNSPECIFIED)
 EDGE_TYPES = {
-	'enum_CFG_NEXT': 0,
-	'enum_LAST_READ': 1,
-	'enum_LAST_WRITE': 2,
-	'enum_COMPUTED_FROM': 3,
-	'enum_RETURNS_TO': 4,
-	'enum_FORMAL_ARG_NAME': 5,
-	'enum_FIELD': 6,
-	'enum_SYNTAX': 7,
-	'enum_NEXT_SYNTAX': 8,
-	'enum_LAST_LEXICAL_USE': 9,
-	'enum_CALLS': 10
+	# 'enum_CFG_NEXT': 0,
+	# 'enum_LAST_READ': 1,
+	# 'enum_LAST_WRITE': 2,
+	# 'enum_COMPUTED_FROM': 3,
+	# 'enum_RETURNS_TO': 4,
+	# 'enum_FORMAL_ARG_NAME': 5,
+	# 'enum_FIELD': 6,
+	# 'enum_SYNTAX': 7,
+	# 'enum_NEXT_SYNTAX': 8,
+	# 'enum_LAST_LEXICAL_USE': 9,
+	# 'enum_CALLS': 10
+	'NEXT_TOKEN': 0,
+	'CHILD': 1,
+	'OCCURENCE_OF': 2,
+	'SUBTOKEN_OF': 3,
+	'RETURNS_TO': 4,
+	'NEXT_LEXICAL_USE': 5,
+	'ASSIGNED_FROM': 6
 }
 
 class DataLoader():
