@@ -6,12 +6,14 @@ import yaml
 
 import numpy as np
 import tensorflow as tf
+import wandb
 
 from checkpoint_tracker import Tracker
 from data import data_loader, vocabulary
 from meta_model import VarMisuseModel
 
 def main():
+	wandb.init(project="msc_thesis_hendrig")
 	ap = argparse.ArgumentParser()
 	ap.add_argument("data_path", help="Path to data root")
 	ap.add_argument("vocabulary_path", help="Path to vocabulary file")
@@ -84,7 +86,8 @@ def train(data, config, model_path=None, log_path=None):
 			if mbs % config["training"]["print_freq"] == 0:
 				avg_losses = ["{0:.3f}".format(l.result().numpy()) for l in losses]
 				avg_accs = ["{0:.2%}".format(a.result().numpy()) for a in accs]
-				print("MB: {0}, seqs: {1:,}, tokens: {2:,}, loss: {3}, accs: {4}".format(mbs, curr_samples, counts[1].result().numpy(), ", ".join(avg_losses), ", ".join(avg_accs)))
+				print(f"MB: {mbs}, seqs: {curr_samples:,}, tokens: {counts[1].result().numpy():,}, loss: {avg_losses}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}")
+				wandb.log({'loss': losses[1].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy()})
 				[l.reset_states() for l in losses]
 				[a.reset_states() for a in accs]
 			
@@ -119,12 +122,12 @@ def evaluate(data, config, model, is_heldout=True):  # Similar to train, just wi
 		if not is_heldout and mbs % config["training"]["print_freq"] == 0:
 			avg_losses = ["{0:.3f}".format(l.result().numpy()) for l in losses]
 			avg_accs = ["{0:.2%}".format(a.result().numpy()) for a in accs]
-			print("Testing progress: MB: {0}, seqs: {1:,}, tokens: {2:,}, loss: {3}, accs: {4}".format(mbs, counts[0].result().numpy(), counts[1].result().numpy(), ", ".join(avg_losses), ", ".join(avg_accs)))
+			print(f"MB: {mbs}, seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_losses}, accs: {avg_accs}")
 
 	avg_accs = [a.result().numpy() for a in accs]
 	avg_accs_str = ", ".join(["{0:.2%}".format(a) for a in avg_accs])
 	avg_loss_str = ", ".join(["{0:.3f}".format(l.result().numpy()) for l in losses])
-	print("Evaluation result: seqs: {0:,}, tokens: {1:,}, loss: {2}, accs: {3}".format(counts[0].result().numpy(), counts[1].result().numpy(), avg_loss_str, avg_accs_str))
+	print(f"Evaluation result: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_loss_str}, accs: {avg_accs_str}")
 	return avg_accs
 
 def get_metrics():
