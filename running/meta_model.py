@@ -108,7 +108,7 @@ class VarMisuseModel(tf.keras.layers.Layer):
 		target_loss = target_loss * 0
 		target_loc_acc = 0
 		joint_acc = 0
-		return (loc_loss, target_loss), (no_bug_pred_acc, bug_loc_acc, target_loc_acc, joint_acc)
+		return (loc_loss, target_loss), (no_bug_pred_acc, bug_loc_acc, target_loc_acc, joint_acc), (is_buggy, loc_accs)
 	
 	# Used to initialize the model's variables
 	def run_dummy_input(self):

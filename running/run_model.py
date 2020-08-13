@@ -1,4 +1,6 @@
 import sys
+import numpy
+
 sys.path.append('.')
 
 import argparse
@@ -11,6 +13,8 @@ import wandb
 from checkpoint_tracker import Tracker
 from data import data_loader, vocabulary
 from meta_model import VarMisuseModel
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
 
 def main():
 	wandb.init(project="msc_thesis_hendrig")
@@ -23,6 +27,8 @@ def main():
 	ap.add_argument("-e", "--eval_only", help="Whether to run just the final model evaluation")
 	args = ap.parse_args()
 	config = yaml.safe_load(open(args.config))
+	wandb.config.update(args)
+	wandb.config.update(config)
 	print("Training with configuration:", config)
 	data = data_loader.DataLoader(args.data_path, config["data"], vocabulary.Vocabulary(args.vocabulary_path))
 	if args.eval_only:
@@ -67,7 +73,9 @@ def train(data, config, model_path=None, log_path=None):
 			
 			with tf.GradientTape() as tape:
 				pointer_preds = model(tokens, token_mask, edges, training=True)
-				ls, acs = model.get_loss(pointer_preds, token_mask, error_loc, repair_targets, repair_candidates)
+				ls, acs, binary_data = model.get_loss(pointer_preds, token_mask, error_loc, repair_targets, repair_candidates)
+				y_true, y_pred = binary_data
+
 				loc_loss, rep_loss = ls
 				loss = loc_loss + rep_loss
 
@@ -86,8 +94,10 @@ def train(data, config, model_path=None, log_path=None):
 			if mbs % config["training"]["print_freq"] == 0:
 				avg_losses = ["{0:.3f}".format(l.result().numpy()) for l in losses]
 				avg_accs = ["{0:.2%}".format(a.result().numpy()) for a in accs]
-				print(f"MB: {mbs}, seqs: {curr_samples:,}, tokens: {counts[1].result().numpy():,}, loss: {avg_losses}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}")
-				wandb.log({'loss': losses[1].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy()})
+				precision = precision_score(y_true, y_pred, average='binary')
+				recall = recall_score(y_true, y_pred, average='binary')
+				print(f"MB: {mbs}, seqs: {curr_samples:,}, tokens: {counts[1].result().numpy():,}, loss: {losses[0].result().numpy()}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}, precision: {precision}, recall: {recall}")
+				# wandb.log({'loss': losses[0].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy(), 'precision': precision, 'recall': recall})
 				[l.reset_states() for l in losses]
 				[a.reset_states() for a in accs]
 			
@@ -108,13 +118,20 @@ def evaluate(data, config, model, is_heldout=True):  # Similar to train, just wi
 	
 	losses, accs, counts = get_metrics()
 	mbs = 0
+	y_true_all = []
+	y_pred_all = []
 	for batch in data.batcher(mode='dev' if is_heldout else 'eval'):
 		mbs += 1
 		tokens, edges, error_loc, repair_targets, repair_candidates = batch		
 		token_mask = tf.clip_by_value(tf.reduce_sum(tokens, -1), 0, 1)
 		
 		pointer_preds = model(tokens, token_mask, edges, training=False)
-		ls, acs = model.get_loss(pointer_preds, token_mask, error_loc, repair_targets, repair_candidates)
+		ls, acs, binary_data = model.get_loss(pointer_preds, token_mask, error_loc, repair_targets, repair_candidates)
+		y_true, y_pred = binary_data
+		y_true_all = numpy.append(y_true_all, y_true.numpy())
+		y_pred_all = numpy.append(y_pred_all, y_pred.numpy())
+		precision = precision_score(y_true, y_pred, average='binary')
+		recall = recall_score(y_true, y_pred, average='binary')
 		num_buggy = tf.reduce_sum(tf.clip_by_value(error_loc, 0, 1))
 		update_metrics(losses, accs, counts, token_mask, ls, acs, num_buggy)
 		if is_heldout and counts[0].result() > config['data']['max_valid_samples']:
@@ -122,12 +139,15 @@ def evaluate(data, config, model, is_heldout=True):  # Similar to train, just wi
 		if not is_heldout and mbs % config["training"]["print_freq"] == 0:
 			avg_losses = ["{0:.3f}".format(l.result().numpy()) for l in losses]
 			avg_accs = ["{0:.2%}".format(a.result().numpy()) for a in accs]
-			print(f"MB: {mbs}, seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_losses}, accs: {avg_accs}")
+			print(f"MB: {mbs}, seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {losses[0].result().numpy()}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}, precision: {precision}, recall: {recall}")
 
 	avg_accs = [a.result().numpy() for a in accs]
 	avg_accs_str = ", ".join(["{0:.2%}".format(a) for a in avg_accs])
 	avg_loss_str = ", ".join(["{0:.3f}".format(l.result().numpy()) for l in losses])
-	print(f"Evaluation result: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_loss_str}, accs: {avg_accs_str}")
+	# print(f"Old evaluation result: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_loss_str}, accs: {avg_accs_str}")
+	precision = precision_score(y_true_all, y_pred_all, average='binary')
+	recall = recall_score(y_true_all, y_pred_all, average='binary')
+	print(f"New evaluation results: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {losses[0].result().numpy()}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}, precision: {precision}, recall: {recall}")
 	return avg_accs
 
 def get_metrics():
