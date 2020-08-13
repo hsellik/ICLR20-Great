@@ -58,4 +58,4 @@ class GPUSelector:
         best_memory, best_gpu = sorted(memory_gpu_map)[0]
         print(f"Using CUDA_VISIBLE_DEVICES {best_gpu}")
 
-        return None
+        return best_gpu
