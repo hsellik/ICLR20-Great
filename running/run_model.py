@@ -1,5 +1,8 @@
+import os
 import sys
 import numpy
+
+from running.gpu_selector import GPUSelector
 
 sys.path.append('.')
 
@@ -29,6 +32,9 @@ def main():
 	config = yaml.safe_load(open(args.config))
 	wandb.config.update(args)
 	wandb.config.update(config)
+	lowest_memory_gpu = GPUSelector().pick_gpu_lowest_memory()
+	if lowest_memory_gpu is not None:
+		os.environ["CUDA_VISIBLE_DEVICES"] = str(lowest_memory_gpu)
 	print("Training with configuration:", config)
 	data = data_loader.DataLoader(args.data_path, config["data"], vocabulary.Vocabulary(args.vocabulary_path))
 	if args.eval_only:
@@ -97,7 +103,7 @@ def train(data, config, model_path=None, log_path=None):
 				precision = precision_score(y_true, y_pred, average='binary')
 				recall = recall_score(y_true, y_pred, average='binary')
 				print(f"MB: {mbs}, seqs: {curr_samples:,}, tokens: {counts[1].result().numpy():,}, loss: {losses[0].result().numpy()}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}, precision: {precision}, recall: {recall}")
-				# wandb.log({'loss': losses[0].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy(), 'precision': precision, 'recall': recall})
+				wandb.log({'loss': losses[0].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy(), 'precision': precision, 'recall': recall})
 				[l.reset_states() for l in losses]
 				[a.reset_states() for a in accs]
 			
