@@ -2,8 +2,6 @@ import os
 import sys
 import numpy
 
-from running.gpu_selector import GPUSelector
-
 sys.path.append('.')
 
 import argparse
@@ -14,7 +12,7 @@ import tensorflow as tf
 import wandb
 
 from checkpoint_tracker import Tracker
-from data import data_loader, vocabulary
+from data import data_loader, vocabulary, gpu_selector
 from meta_model import VarMisuseModel
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
@@ -32,7 +30,7 @@ def main():
 	config = yaml.safe_load(open(args.config))
 	wandb.config.update(args)
 	wandb.config.update(config)
-	lowest_memory_gpu = GPUSelector().pick_gpu_lowest_memory()
+	lowest_memory_gpu = gpu_selector.GPUSelector().pick_gpu_lowest_memory()
 	if lowest_memory_gpu is not None:
 		os.environ["CUDA_VISIBLE_DEVICES"] = str(lowest_memory_gpu)
 	print("Training with configuration:", config)
@@ -67,7 +65,7 @@ def train(data, config, model_path=None, log_path=None):
 		print("Restored from step:", tracker.ckpt.step.numpy() + 1)
 	else:
 		print("Step:", tracker.ckpt.step.numpy() + 1)
-	
+
 	mbs = 0
 	losses, accs, counts = get_metrics()
 	while tracker.ckpt.step < config["training"]["max_steps"]:
@@ -76,7 +74,7 @@ def train(data, config, model_path=None, log_path=None):
 			mbs += 1
 			tokens, edges, error_loc, repair_targets, repair_candidates = batch
 			token_mask = tf.clip_by_value(tf.reduce_sum(tokens, -1), 0, 1)
-			
+
 			with tf.GradientTape() as tape:
 				pointer_preds = model(tokens, token_mask, edges, training=True)
 				ls, acs, binary_data = model.get_loss(pointer_preds, token_mask, error_loc, repair_targets, repair_candidates)
@@ -95,7 +93,7 @@ def train(data, config, model_path=None, log_path=None):
 			prev_samples = tracker.get_samples()
 			curr_samples = tracker.update_samples(samples)
 			update_metrics(losses, accs, counts, token_mask, ls, acs, num_buggy)
-		
+
 			# Every few minibatches, print the recent training performance
 			if mbs % config["training"]["print_freq"] == 0:
 				avg_losses = ["{0:.3f}".format(l.result().numpy()) for l in losses]
