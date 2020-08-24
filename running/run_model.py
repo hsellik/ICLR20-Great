@@ -151,6 +151,7 @@ def evaluate(data, config, model, is_heldout=True):  # Similar to train, just wi
 	# print(f"Old evaluation result: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {avg_loss_str}, accs: {avg_accs_str}")
 	precision = precision_score(y_true_all, y_pred_all, average='binary')
 	recall = recall_score(y_true_all, y_pred_all, average='binary')
+	wandb.log({'loss': losses[0].result().numpy(), 'no_bug_pred_acc': accs[0].result().numpy(), 'bug_loc_acc': accs[1].result().numpy(), 'precision': precision, 'recall': recall})
 	print(f"New evaluation results: seqs: {counts[0].result().numpy():,}, tokens: {counts[1].result().numpy():,}, loss: {losses[0].result().numpy()}, no_bug_pred_acc: {avg_accs[0]}, bug_loc_acc: {avg_accs[1]}, precision: {precision}, recall: {recall}")
 	return avg_accs
 
